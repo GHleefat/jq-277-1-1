@@ -31,15 +31,16 @@ export const ReplayControls: React.FC = () => {
     stepToStart,
     stepToEnd,
     getCurrentMoveIndex,
-    getTotalMovesInCurrentPath,
+    getTotalMovesInFullPath,
     getCurrentMovesPath,
+    moves,
   } = useGameStore();
 
   const [isPlaying, setIsPlaying] = useState(false);
   const timerRef = useRef<number | null>(null);
 
   const currentMoveIndex = getCurrentMoveIndex();
-  const totalMovesInPath = getTotalMovesInCurrentPath();
+  const totalMoves = getTotalMovesInFullPath();
   const path = getCurrentMovesPath();
 
   const stopPlayback = () => {
@@ -51,7 +52,7 @@ export const ReplayControls: React.FC = () => {
   };
 
   const startPlayback = () => {
-    if (currentMoveIndex >= totalMovesInPath) {
+    if (currentMoveIndex >= totalMoves) {
       stepToStart();
     }
     setIsPlaying(true);
@@ -62,7 +63,7 @@ export const ReplayControls: React.FC = () => {
     timerRef.current = window.setInterval(() => {
       const state = useGameStore.getState();
       const curIdx = state.getCurrentMoveIndex();
-      const total = state.getTotalMovesInCurrentPath();
+      const total = state.getTotalMovesInFullPath();
       if (curIdx >= total) {
         stopPlayback();
         return;
@@ -79,9 +80,12 @@ export const ReplayControls: React.FC = () => {
 
   if (!isReplayMode) return null;
 
-  const progress = totalMovesInPath < 0 ? 0 : ((currentMoveIndex + 1) / (totalMovesInPath + 1)) * 100;
-  const hasMoreSteps = currentMoveIndex < totalMovesInPath;
+  const totalMovesCount = totalMoves + 1;
+  const currentDisplay = currentMoveIndex + 1;
+  const progress = totalMoves < 0 ? 0 : (currentDisplay / totalMovesCount) * 100;
+  const hasMoreSteps = currentMoveIndex < totalMoves;
   const hasPrevSteps = currentMoveIndex >= 0;
+  const hasAnyMoves = totalMoves >= 0;
 
   return (
     <div className="bg-gradient-to-r from-stone-800 via-stone-700 to-stone-800 rounded-lg shadow-lg p-4 text-amber-50">
@@ -96,7 +100,7 @@ export const ReplayControls: React.FC = () => {
           )}
         </div>
         <div className="text-xs font-mono bg-black/30 px-2 py-1 rounded">
-          {currentMoveIndex + 1} / {totalMovesInPath + 1}
+          {Math.max(0, currentDisplay)} / {Math.max(0, totalMovesCount)}
         </div>
       </div>
 
@@ -148,7 +152,7 @@ export const ReplayControls: React.FC = () => {
 
         <button
           onClick={isPlaying ? stopPlayback : startPlayback}
-          disabled={path.length === 0}
+          disabled={!hasAnyMoves}
           className="p-3 rounded-full bg-amber-500 hover:bg-amber-400 text-stone-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg hover:scale-105 active:scale-95"
           title={isPlaying ? '暂停' : '播放'}
         >
@@ -192,7 +196,7 @@ export const ReplayControls: React.FC = () => {
           ))}
         </div>
 
-        {!gameOver && !isCreatingVariation && !currentBranch && (
+        {!isCreatingVariation && !currentBranch && (
           <button
             onClick={startVariation}
             className="ml-2 flex items-center gap-1 px-3 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 transition-colors"

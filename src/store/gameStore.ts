@@ -46,6 +46,7 @@ interface GameState {
   getCurrentMovesPath: () => Move[];
   getCurrentMoveIndex: () => number;
   getTotalMovesInCurrentPath: () => number;
+  getTotalMovesInFullPath: () => number;
   getCurrentMove: () => Move | null;
   stepForward: () => void;
   stepBackward: () => void;
@@ -144,6 +145,18 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   getTotalMovesInCurrentPath: () => {
     return get().getCurrentMovesPath().length - 1;
+  },
+
+  getTotalMovesInFullPath: () => {
+    const state = get();
+    if (state.currentBranch) {
+      const branch = state.moves[state.currentBranch.parentMainIndex]?.variations[state.currentBranch.branchIndex];
+      if (branch) {
+        return state.currentBranch.parentMainIndex + 1 + branch.moves.length - 1;
+      }
+      return state.currentBranch.parentMainIndex;
+    }
+    return state.moves.length - 1;
   },
 
   getCurrentMove: () => {
