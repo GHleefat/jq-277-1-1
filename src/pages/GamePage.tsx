@@ -1,14 +1,21 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ChessBoard } from '@/components/Board/ChessBoard';
 import { MoveList } from '@/components/MoveList';
 import { Toolbar } from '@/components/Toolbar';
 import { ReplayControls } from '@/components/ReplayControls';
 import { useGameStore } from '@/store/gameStore';
+import { Toast, setToastCallback, type ToastMessage } from '@/components/Toast';
 
 const GamePage: React.FC = () => {
   const { id } = useParams();
   const { currentSide, isReplayMode, gameRecord, resetGame, loadGame, gameOver, isCreatingVariation, currentBranch } = useGameStore();
+  const [toast, setToast] = useState<ToastMessage | null>(null);
+
+  useEffect(() => {
+    setToastCallback((msg) => setToast(msg));
+    return () => setToastCallback(null);
+  }, []);
 
   useEffect(() => {
     if (id) {
@@ -20,6 +27,7 @@ const GamePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-200 via-amber-50 to-stone-200">
+      <Toast toast={toast} onClose={() => setToast(null)} />
       <div className="absolute inset-0 opacity-30 pointer-events-none" style={{
         backgroundImage: `radial-gradient(circle at 20% 20%, rgba(139,37,0,0.05) 0%, transparent 50%),
                           radial-gradient(circle at 80% 80%, rgba(139,37,0,0.05) 0%, transparent 50%)`

@@ -18,17 +18,23 @@ export function getGameById(id: string): GameRecord | undefined {
   return getAllGames().find(g => g.id === id);
 }
 
-export function saveGame(game: GameRecord): void {
-  const games = getAllGames();
-  const idx = games.findIndex(g => g.id === game.id);
-  game.updatedAt = Date.now();
-  if (idx >= 0) {
-    games[idx] = game;
-  } else {
-    game.createdAt = Date.now();
-    games.unshift(game);
+export function saveGame(game: GameRecord): boolean {
+  try {
+    const games = getAllGames();
+    const idx = games.findIndex(g => g.id === game.id);
+    game.updatedAt = Date.now();
+    if (idx >= 0) {
+      games[idx] = game;
+    } else {
+      game.createdAt = Date.now();
+      games.unshift(game);
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(games));
+    return true;
+  } catch (e) {
+    console.error('保存棋谱失败', e);
+    return false;
   }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(games));
 }
 
 export function deleteGame(id: string): void {

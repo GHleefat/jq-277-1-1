@@ -39,7 +39,7 @@ interface GameState {
   cancelVariation: () => void;
   addComment: (moveId: string, comment: string) => void;
   setGameInfo: (info: Partial<Pick<GameRecord, 'title' | 'redPlayer' | 'blackPlayer' | 'event' | 'date' | 'result'>>) => void;
-  saveCurrentGame: () => void;
+  saveCurrentGame: () => boolean;
   setReplayMode: (mode: boolean) => void;
   setReplaySpeed: (speed: number) => void;
   setResult: (result: GameResult) => void;
@@ -400,7 +400,6 @@ export const useGameStore = create<GameState>((set, get) => ({
   startVariation: () => {
     const state = get();
     if (!state.isReplayMode) return;
-    if (state.gameOver) return;
     if (state.currentBranch) return;
 
     set({
@@ -502,26 +501,45 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ gameRecord: { ...state.gameRecord, ...info } });
   },
 
-  saveCurrentGame: () => {
+  saveCurrentGame: (): boolean => {
     const state = get();
-    if (!state.gameRecord) return;
+    if (!state.gameRecord) return false;
     const record: GameRecord = {
       ...state.gameRecord,
       moves: state.moves,
     };
-    saveGame(record);
-    set({ gameRecord: record });
+    const success = saveGame(record);
+    if (success) {
+      set({ gameRecord: record });
+    }
+    return success;
   },
 
   setReplayMode: (mode) => {
     const state = get();
     if (mode && state.moves.length === 0) return;
-    set({
-      isReplayMode: mode,
-      isCreatingVariation: false,
-      selectedPiece: null,
-      validMoves: [],
-    });
+
+    if (mode && state.gameOver) {
+      const { pieces, lastMove, side } = rebuildBoard(state.moves, -1, null);
+      set({
+        isReplayMode: mode,
+        isCreatingVariation: false,
+        selectedPiece: null,
+        validMoves: [],
+        currentMainIndex: -1,
+        currentBranch: null,
+        pieces,
+        lastMove,
+        currentSide: side,
+      });
+    } else {
+      set({
+        isReplayMode: mode,
+        isCreatingVariation: false,
+        selectedPiece: null,
+        validMoves: [],
+      });
+    }
   },
 
   setReplaySpeed: (speed) => set({ replaySpeed: speed }),

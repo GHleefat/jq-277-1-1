@@ -17,6 +17,7 @@ import {
   GitBranch,
 } from 'lucide-react';
 import { downloadFile } from '@/utils/chess';
+import { showToast } from '@/components/Toast';
 
 function exportToTextWithBranches(record: GameRecord): string {
   const lines: string[] = [];
@@ -171,7 +172,14 @@ export const Toolbar: React.FC = () => {
           </button>
 
           <button
-            onClick={saveCurrentGame}
+            onClick={() => {
+              const success = saveCurrentGame();
+              if (success) {
+                showToast('success', '棋谱保存成功！');
+              } else {
+                showToast('error', '保存失败，请重试');
+              }
+            }}
             className="flex items-center gap-1 px-3 py-2 rounded-md bg-emerald-700 hover:bg-emerald-600 transition-colors text-sm"
             title="保存棋谱"
           >

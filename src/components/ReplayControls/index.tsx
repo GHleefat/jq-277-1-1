@@ -114,9 +114,9 @@ export const ReplayControls: React.FC = () => {
         </div>
       )}
 
-      {gameOver && (
-        <div className="bg-red-900/50 rounded-md px-3 py-2 mb-3 text-center text-sm font-semibold">
-          🏆 对局已结束，不能继续走棋
+      {gameOver && !isCreatingVariation && (
+        <div className="bg-amber-900/50 rounded-md px-3 py-2 mb-3 text-center text-sm">
+          🏆 已结束对局回放模式，可逐步回看或自动播放
         </div>
       )}
 
