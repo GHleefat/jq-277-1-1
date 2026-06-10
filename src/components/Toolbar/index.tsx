@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGameStore } from '@/store/gameStore';
+import type { GameRecord, Move, Branch } from '@/types/chess';
 import {
   Plus,
   Save,
@@ -13,8 +14,92 @@ import {
   Users,
   Calendar,
   FileText,
+  GitBranch,
 } from 'lucide-react';
-import { exportToText, exportToPGN, downloadFile } from '@/utils/chess';
+import { downloadFile } from '@/utils/chess';
+
+function exportToTextWithBranches(record: GameRecord): string {
+  const lines: string[] = [];
+  lines.push(`[标题] ${record.title}`);
+  lines.push(`[红方] ${record.redPlayer}`);
+  lines.push(`[黑方] ${record.blackPlayer}`);
+  if (record.event) lines.push(`[赛事] ${record.event}`);
+  if (record.date) lines.push(`[日期] ${record.date}`);
+  if (record.result) lines.push(`[结果] ${record.result}`);
+  lines.push('');
+
+  const formatLine = (moves: Move[], prefix: string = '') => {
+    let text = prefix;
+    moves.forEach((move, idx) => {
+      const step = Math.floor(idx / 2) + 1;
+      if (idx % 2 === 0) {
+        text += `${step}. ${move.notation} `;
+      } else {
+        text += `${move.notation}  `;
+      }
+      if (move.comment) {
+        text += `{${move.comment}} `;
+      }
+    });
+    return text.trim();
+  };
+
+  const formatBranch = (branch: Branch, depth: number = 0) => {
+    const indent = '  '.repeat(depth + 1);
+    lines.push(`${indent}(${branch.name})`);
+    lines.push(indent + formatLine(branch.moves, indent));
+    branch.moves.forEach(move => {
+      move.variations.forEach(v => formatBranch(v, depth + 1));
+    });
+  };
+
+  lines.push(formatLine(record.moves));
+  record.moves.forEach(move => {
+    move.variations.forEach(v => formatBranch(v, 0));
+  });
+
+  return lines.join('\n');
+}
+
+function exportToPGNWithBranches(record: GameRecord): string {
+  const lines: string[] = [];
+  lines.push(`[Event "${record.event || '个人对局'}"]`);
+  lines.push(`[Site "本地"]`);
+  lines.push(`[Date "${record.date || new Date(record.createdAt).toISOString().slice(0, 10)}"]`);
+  lines.push(`[Round "1"]`);
+  lines.push(`[White "${record.redPlayer}"]`);
+  lines.push(`[Black "${record.blackPlayer}"]`);
+  const resultMap: Record<string, string> = { '红胜': '1-0', '黑胜': '0-1', '和棋': '1/2-1/2', '': '*' };
+  lines.push(`[Result "${resultMap[record.result] || '*'}"]`);
+  lines.push('');
+
+  const formatMoves = (moves: Move[]): string => {
+    let text = '';
+    moves.forEach((move, idx) => {
+      const step = Math.floor(idx / 2) + 1;
+      if (idx % 2 === 0) {
+        text += `${step}. ${move.notation} `;
+      } else {
+        text += `${move.notation}  `;
+      }
+      if (move.comment) {
+        text += `{${move.comment}} `;
+      }
+      if (move.variations.length > 0) {
+        move.variations.forEach(v => {
+          text += `(${formatMoves(v.moves)} `;
+        });
+      }
+    });
+    return text.trim();
+  };
+
+  let moveText = formatMoves(record.moves);
+  moveText += ' ' + (resultMap[record.result] || '*');
+  lines.push(moveText.trim());
+
+  return lines.join('\n');
+}
 
 export const Toolbar: React.FC = () => {
   const navigate = useNavigate();
@@ -23,19 +108,24 @@ export const Toolbar: React.FC = () => {
     saveCurrentGame,
     undoMove,
     redoMove,
-    currentMoveIndex,
+    currentMainIndex,
+    currentBranch,
     moves,
     gameRecord,
     setGameInfo,
     setResult,
     isReplayMode,
     setReplayMode,
+    getCurrentMoveIndex,
+    gameOver,
   } = useGameStore();
+
+  const currentMoveIndex = getCurrentMoveIndex();
 
   const handleExport = (format: 'txt' | 'pgn') => {
     if (!gameRecord) return;
-    const record = { ...gameRecord, moves };
-    const content = format === 'pgn' ? exportToPGN(record) : exportToText(record);
+    const record: GameRecord = { ...gameRecord, moves };
+    const content = format === 'pgn' ? exportToPGNWithBranches(record) : exportToTextWithBranches(record);
     const filename = `${gameRecord.title || '棋谱'}.${format === 'pgn' ? 'pgn' : 'txt'}`;
     const mime = format === 'pgn' ? 'application/x-chess-pgn' : 'text/plain';
     downloadFile(content, filename, mime);
@@ -92,7 +182,7 @@ export const Toolbar: React.FC = () => {
 
           <button
             onClick={undoMove}
-            disabled={isReplayMode || currentMoveIndex < 0}
+            disabled={isReplayMode || !!currentBranch || currentMainIndex < 0 || gameOver}
             className="flex items-center gap-1 px-3 py-2 rounded-md bg-stone-700 hover:bg-stone-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm"
             title="悔棋"
           >
@@ -101,7 +191,7 @@ export const Toolbar: React.FC = () => {
 
           <button
             onClick={redoMove}
-            disabled={isReplayMode || currentMoveIndex >= moves.length - 1}
+            disabled={isReplayMode || !!currentBranch || currentMainIndex >= moves.length - 1 || gameOver}
             className="flex items-center gap-1 px-3 py-2 rounded-md bg-stone-700 hover:bg-stone-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm"
             title="撤销悔棋"
           >
@@ -122,6 +212,18 @@ export const Toolbar: React.FC = () => {
           >
             <PlayCircle size={16} /> {isReplayMode ? '编辑中' : '回放'}
           </button>
+
+          {currentBranch && (
+            <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-purple-600 text-xs">
+              <GitBranch size={12} /> 变着模式
+            </span>
+          )}
+
+          {gameOver && (
+            <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-700 text-xs">
+              🏆 已结束
+            </span>
+          )}
 
           <div className="w-px h-6 bg-stone-600 mx-1" />
 

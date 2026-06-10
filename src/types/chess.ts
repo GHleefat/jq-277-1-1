@@ -26,8 +26,19 @@ export interface Move {
   notation: string;
   capturedPiece?: PieceType;
   comment?: string;
-  parentMoveId?: string;
-  variations?: Move[][];
+  variations: Branch[];
+}
+
+export interface Branch {
+  id: string;
+  name: string;
+  moves: Move[];
+}
+
+export interface CurrentBranch {
+  parentMainIndex: number;
+  branchIndex: number;
+  moveIndex: number;
 }
 
 export type GameResult = '红胜' | '黑胜' | '和棋' | '';
@@ -66,4 +77,8 @@ export function isRedPiece(type: PieceType): type is RedPieceType {
 
 export function isBlackPiece(type: PieceType): type is BlackPieceType {
   return BLACK_PIECES.includes(type as BlackPieceType);
+}
+
+export function isKingPiece(type: PieceType): boolean {
+  return type === '帅' || type === '將';
 }

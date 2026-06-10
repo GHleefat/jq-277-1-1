@@ -8,23 +8,39 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Gauge,
+  GitBranch,
+  Plus,
+  X,
 } from 'lucide-react';
 
 const SPEEDS = [0.5, 1, 2, 4];
 
 export const ReplayControls: React.FC = () => {
   const {
-    moves,
-    currentMoveIndex,
-    jumpToMove,
-    replaySpeed,
-    setReplaySpeed,
     isReplayMode,
     setReplayMode,
+    replaySpeed,
+    setReplaySpeed,
+    currentBranch,
+    startVariation,
+    cancelVariation,
+    isCreatingVariation,
+    gameOver,
+    stepForward,
+    stepBackward,
+    stepToStart,
+    stepToEnd,
+    getCurrentMoveIndex,
+    getTotalMovesInCurrentPath,
+    getCurrentMovesPath,
   } = useGameStore();
 
   const [isPlaying, setIsPlaying] = useState(false);
   const timerRef = useRef<number | null>(null);
+
+  const currentMoveIndex = getCurrentMoveIndex();
+  const totalMovesInPath = getTotalMovesInCurrentPath();
+  const path = getCurrentMovesPath();
 
   const stopPlayback = () => {
     if (timerRef.current) {
@@ -35,29 +51,27 @@ export const ReplayControls: React.FC = () => {
   };
 
   const startPlayback = () => {
-    if (currentMoveIndex >= moves.length - 1) {
-      jumpToMove(-1);
+    if (currentMoveIndex >= totalMovesInPath) {
+      stepToStart();
     }
     setIsPlaying(true);
   };
 
   useEffect(() => {
     if (!isPlaying) return;
-    if (currentMoveIndex >= moves.length - 1) {
-      stopPlayback();
-      return;
-    }
     timerRef.current = window.setInterval(() => {
       const state = useGameStore.getState();
-      if (state.currentMoveIndex >= state.moves.length - 1) {
+      const curIdx = state.getCurrentMoveIndex();
+      const total = state.getTotalMovesInCurrentPath();
+      if (curIdx >= total) {
         stopPlayback();
         return;
       }
-      jumpToMove(state.currentMoveIndex + 1);
+      state.stepForward();
     }, 1200 / replaySpeed);
 
     return () => stopPlayback();
-  }, [isPlaying, replaySpeed, moves.length]);
+  }, [isPlaying, replaySpeed]);
 
   useEffect(() => {
     return () => stopPlayback();
@@ -65,8 +79,9 @@ export const ReplayControls: React.FC = () => {
 
   if (!isReplayMode) return null;
 
-  const totalMoves = moves.length;
-  const progress = totalMoves === 0 ? 0 : ((currentMoveIndex + 1) / totalMoves) * 100;
+  const progress = totalMovesInPath < 0 ? 0 : ((currentMoveIndex + 1) / (totalMovesInPath + 1)) * 100;
+  const hasMoreSteps = currentMoveIndex < totalMovesInPath;
+  const hasPrevSteps = currentMoveIndex >= 0;
 
   return (
     <div className="bg-gradient-to-r from-stone-800 via-stone-700 to-stone-800 rounded-lg shadow-lg p-4 text-amber-50">
@@ -74,11 +89,36 @@ export const ReplayControls: React.FC = () => {
         <div className="text-sm font-semibold flex items-center gap-2">
           <Gauge size={16} className="text-amber-400" />
           回放控制
+          {currentBranch && (
+            <span className="text-xs bg-purple-500 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <GitBranch size={12} /> 变着
+            </span>
+          )}
         </div>
         <div className="text-xs font-mono bg-black/30 px-2 py-1 rounded">
-          {currentMoveIndex + 1} / {totalMoves}
+          {currentMoveIndex + 1} / {totalMovesInPath + 1}
         </div>
       </div>
+
+      {isCreatingVariation && (
+        <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-md px-3 py-2 mb-3 flex items-center justify-between text-sm">
+          <span className="flex items-center gap-1">
+            <Plus size={14} /> 正在添加变着，请在棋盘上走棋
+          </span>
+          <button
+            onClick={cancelVariation}
+            className="p-1 rounded hover:bg-white/20"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {gameOver && (
+        <div className="bg-red-900/50 rounded-md px-3 py-2 mb-3 text-center text-sm font-semibold">
+          🏆 对局已结束，不能继续走棋
+        </div>
+      )}
 
       <div className="h-1.5 bg-stone-900 rounded-full mb-4 overflow-hidden">
         <div
@@ -89,8 +129,8 @@ export const ReplayControls: React.FC = () => {
 
       <div className="flex items-center justify-center gap-2">
         <button
-          onClick={() => jumpToMove(-1)}
-          disabled={totalMoves === 0}
+          onClick={stepToStart}
+          disabled={!hasPrevSteps}
           className="p-2 rounded-md bg-stone-700 hover:bg-stone-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           title="回到开始"
         >
@@ -98,8 +138,8 @@ export const ReplayControls: React.FC = () => {
         </button>
 
         <button
-          onClick={() => jumpToMove(Math.max(-1, currentMoveIndex - 1))}
-          disabled={currentMoveIndex < 0}
+          onClick={stepBackward}
+          disabled={!hasPrevSteps}
           className="p-2 rounded-md bg-stone-700 hover:bg-stone-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           title="上一步"
         >
@@ -108,7 +148,7 @@ export const ReplayControls: React.FC = () => {
 
         <button
           onClick={isPlaying ? stopPlayback : startPlayback}
-          disabled={totalMoves === 0}
+          disabled={path.length === 0}
           className="p-3 rounded-full bg-amber-500 hover:bg-amber-400 text-stone-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg hover:scale-105 active:scale-95"
           title={isPlaying ? '暂停' : '播放'}
         >
@@ -116,8 +156,8 @@ export const ReplayControls: React.FC = () => {
         </button>
 
         <button
-          onClick={() => jumpToMove(Math.min(totalMoves - 1, currentMoveIndex + 1))}
-          disabled={currentMoveIndex >= totalMoves - 1}
+          onClick={stepForward}
+          disabled={!hasMoreSteps}
           className="p-2 rounded-md bg-stone-700 hover:bg-stone-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           title="下一步"
         >
@@ -125,8 +165,8 @@ export const ReplayControls: React.FC = () => {
         </button>
 
         <button
-          onClick={() => jumpToMove(totalMoves - 1)}
-          disabled={totalMoves === 0}
+          onClick={stepToEnd}
+          disabled={!hasMoreSteps}
           className="p-2 rounded-md bg-stone-700 hover:bg-stone-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           title="跳到结尾"
         >
@@ -134,7 +174,7 @@ export const ReplayControls: React.FC = () => {
         </button>
       </div>
 
-      <div className="flex items-center justify-center gap-2 mt-4">
+      <div className="flex items-center justify-center gap-2 mt-4 flex-wrap">
         <span className="text-xs text-stone-400">速度:</span>
         <div className="flex gap-1">
           {SPEEDS.map(s => (
@@ -151,6 +191,17 @@ export const ReplayControls: React.FC = () => {
             </button>
           ))}
         </div>
+
+        {!gameOver && !isCreatingVariation && !currentBranch && (
+          <button
+            onClick={startVariation}
+            className="ml-2 flex items-center gap-1 px-3 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 transition-colors"
+            title="在当前步之后添加变着"
+          >
+            <GitBranch size={12} /> 加变着
+          </button>
+        )}
+
         <button
           onClick={() => setReplayMode(false)}
           className="ml-auto text-xs px-3 py-1 rounded bg-stone-700 hover:bg-red-700 transition-colors"

@@ -20,10 +20,14 @@ export const ChessBoard: React.FC = () => {
     movePiece,
     currentSide,
     isReplayMode,
+    gameOver,
+    isCreatingVariation,
+    gameRecord,
   } = useGameStore();
 
   const handleCellClick = (col: number, row: number) => {
-    if (isReplayMode) return;
+    if (gameOver) return;
+    if (isReplayMode && !isCreatingVariation) return;
     const piece = getPieceAt(pieces, { col, row });
 
     if (selectedPiece) {
@@ -226,7 +230,7 @@ export const ChessBoard: React.FC = () => {
             height={CELL_SIZE}
             fill="transparent"
             onClick={() => handleCellClick(c, r)}
-            style={{ cursor: isReplayMode ? 'default' : 'pointer' }}
+            style={{ cursor: gameOver ? 'not-allowed' : (isReplayMode && !isCreatingVariation) ? 'default' : 'pointer' }}
           />
         );
       }
@@ -280,20 +284,22 @@ export const ChessBoard: React.FC = () => {
   };
 
   return (
-    <div className="inline-block rounded-lg shadow-2xl p-2"
-      style={{
-        background: 'linear-gradient(135deg, #d4a574 0%, #c19560 50%, #a87f48 100%)',
-      }}
+    <div className="inline-block relative"
     >
-      <svg
-        width={BOARD_WIDTH}
-        height={BOARD_HEIGHT}
+      <div className="rounded-lg shadow-2xl p-2"
         style={{
-          background: 'radial-gradient(ellipse at center, #F5DEB3 0%, #E8D098 60%, #D4B87A 100%)',
-          borderRadius: '6px',
-          display: 'block',
+          background: 'linear-gradient(135deg, #d4a574 0%, #c19560 50%, #a87f48 100%)',
         }}
       >
+        <svg
+          width={BOARD_WIDTH}
+          height={BOARD_HEIGHT}
+          style={{
+            background: 'radial-gradient(ellipse at center, #F5DEB3 0%, #E8D098 60%, #D4B87A 100%)',
+            borderRadius: '6px',
+            display: 'block',
+          }}
+        >
         <defs>
           <pattern id="woodGrain" patternUnits="userSpaceOnUse" width="100" height="100">
             <rect width="100" height="100" fill="transparent" />
@@ -332,6 +338,35 @@ export const ChessBoard: React.FC = () => {
           />
         ))}
       </svg>
+      </div>
+
+      {gameOver && (
+        <div className="absolute inset-0 bg-black/60 rounded-lg flex items-center justify-center backdrop-blur-sm">
+          <div className="text-center p-8 bg-gradient-to-br from-amber-50 to-amber-100 rounded-2xl shadow-2xl border-4 border-amber-400 transform animate-bounce">
+            <div className="text-6xl mb-4">🏆</div>
+            <h2 className="text-3xl font-bold text-stone-800 mb-2" style={{ fontFamily: "'Noto Serif SC', serif" }}>
+              对局结束
+            </h2>
+            <p className={`text-2xl font-bold ${
+              gameRecord?.result === '红胜' ? 'text-red-700' :
+              gameRecord?.result === '黑胜' ? 'text-stone-800' :
+              'text-amber-700'
+            }`}>
+              {gameRecord?.result || ''}
+            </p>
+            <p className="text-sm text-stone-500 mt-3">
+              已自动锁定棋盘，不能继续走棋
+            </p>
+          </div>
+        </div>
+      )}
+
+      {isCreatingVariation && !gameOver && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-purple-600 to-purple-500 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium flex items-center gap-2 animate-pulse">
+          <span className="w-2 h-2 bg-white rounded-full animate-ping" />
+          添加变着模式 - 在棋盘上走棋
+        </div>
+      )}
     </div>
   );
 };

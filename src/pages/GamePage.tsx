@@ -8,7 +8,7 @@ import { useGameStore } from '@/store/gameStore';
 
 const GamePage: React.FC = () => {
   const { id } = useParams();
-  const { currentSide, isReplayMode, gameRecord, resetGame, loadGame } = useGameStore();
+  const { currentSide, isReplayMode, gameRecord, resetGame, loadGame, gameOver, isCreatingVariation, currentBranch } = useGameStore();
 
   useEffect(() => {
     if (id) {
@@ -30,11 +30,23 @@ const GamePage: React.FC = () => {
             ♞ 对弈室
           </h1>
           <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold shadow-md ${
-            currentSide === 'red'
-              ? 'bg-gradient-to-r from-red-700 to-red-600 text-white'
-              : 'bg-gradient-to-r from-stone-800 to-stone-700 text-white'
+            gameOver
+              ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-stone-900'
+              : isCreatingVariation
+                ? 'bg-gradient-to-r from-purple-700 to-purple-600 text-white'
+                : currentBranch
+                  ? 'bg-gradient-to-r from-purple-700 to-purple-600 text-white'
+                  : currentSide === 'red'
+                    ? 'bg-gradient-to-r from-red-700 to-red-600 text-white'
+                    : 'bg-gradient-to-r from-stone-800 to-stone-700 text-white'
           }`}>
-            {isReplayMode ? (
+            {gameOver ? (
+              <>🏆 对局结束：{gameRecord?.result || ''}</>
+            ) : isCreatingVariation ? (
+              <>🌿 添加变着中...</>
+            ) : currentBranch ? (
+              <>🌿 浏览变着</>
+            ) : isReplayMode ? (
               <>▶ 回放模式</>
             ) : (
               <>当前走棋：{currentSide === 'red' ? '红方' : '黑方'}</>
