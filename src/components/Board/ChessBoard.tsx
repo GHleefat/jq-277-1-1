@@ -230,7 +230,7 @@ export const ChessBoard: React.FC = () => {
             height={CELL_SIZE}
             fill="transparent"
             onClick={() => handleCellClick(c, r)}
-            style={{ cursor: gameOver ? 'not-allowed' : (isReplayMode && !isCreatingVariation) ? 'default' : 'pointer' }}
+            style={{ cursor: (isReplayMode && !isCreatingVariation) ? 'default' : gameOver ? 'not-allowed' : 'pointer' }}
           />
         );
       }
@@ -340,7 +340,7 @@ export const ChessBoard: React.FC = () => {
       </svg>
       </div>
 
-      {gameOver && (
+      {gameOver && !isReplayMode && (
         <div className="absolute inset-0 bg-black/60 rounded-lg flex items-center justify-center backdrop-blur-sm">
           <div className="text-center p-8 bg-gradient-to-br from-amber-50 to-amber-100 rounded-2xl shadow-2xl border-4 border-amber-400 transform animate-bounce">
             <div className="text-6xl mb-4">🏆</div>
@@ -361,7 +361,7 @@ export const ChessBoard: React.FC = () => {
         </div>
       )}
 
-      {isCreatingVariation && !gameOver && (
+      {isCreatingVariation && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-purple-600 to-purple-500 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium flex items-center gap-2 animate-pulse">
           <span className="w-2 h-2 bg-white rounded-full animate-ping" />
           添加变着模式 - 在棋盘上走棋

@@ -183,12 +183,14 @@ export const useGameStore = create<GameState>((set, get) => ({
   loadGame: (id: string) => {
     const record = getGameById(id);
     if (!record) return;
-    const { pieces, lastMove, side } = rebuildBoard(record.moves, record.moves.length - 1, null);
+    const isGameOver = record.result !== '';
+    const startIndex = isGameOver ? -1 : record.moves.length - 1;
+    const { pieces, lastMove, side } = rebuildBoard(record.moves, startIndex, null);
     set({
       pieces,
       currentSide: side,
       moves: record.moves,
-      currentMainIndex: record.moves.length - 1,
+      currentMainIndex: startIndex,
       currentBranch: null,
       selectedPiece: null,
       validMoves: [],
@@ -196,7 +198,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       gameRecord: record,
       isReplayMode: true,
       isCreatingVariation: false,
-      gameOver: record.result !== '',
+      gameOver: isGameOver,
     });
   },
 
